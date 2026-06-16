@@ -22,6 +22,7 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
   const [smartlinkClicks, setSmartlinkClicks] = useState(0);
   const [article, setArticle] = useState<any>(null);
   const [error, setError] = useState(false);
+  const [exactError, setExactError] = useState<string | null>(null);
   
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -92,8 +93,10 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
 
     setLoading(true);
     setError(false);
+    setExactError(null);
 
     if (Hls.isSupported() && streamUrl.includes('.m3u8')) {
+      console.log('Initializing HLS for stream URL:', streamUrl);
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
@@ -114,27 +117,48 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
       });
       hls.loadSource(streamUrl);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      
+      hls.on(Hls.Events.MANIFEST_LOADING, (event, data) => {
+        console.log('HLS State: Manifest Loading', data.url);
+      });
+
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log('HLS State: Manifest Parsed', data);
         setLoading(false);
         if (!muted) video.muted = false;
         video.play().catch((e) => console.log('Autoplay prevented:', e));
       });
+      
       hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('HLS Error Event:', data.type, data.details, data);
+        
+        if (data.response) {
+            console.error('Manifest/Segment Response Code:', data.response.code);
+        }
+        
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('fatal network error encountered, try to recover');
-              hls?.startLoad();
+              console.error('fatal network error encountered. Details:', data.details);
+              if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT) {
+                  hls?.destroy();
+                  setLoading(false);
+                  setError(true);
+                  setExactError(`${data.type}: ${data.details} (Code: ${data.response?.code || 'Unknown'})`);
+              } else {
+                  hls?.startLoad();
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('fatal media error encountered, try to recover');
+              console.error('fatal media error encountered, try to recover');
               hls?.recoverMediaError();
               break;
             default:
-              console.log('fatal error, cannot recover');
+              console.error('fatal error, cannot recover');
               hls?.destroy();
               setLoading(false);
               setError(true);
+              setExactError(`${data.type}: ${data.details}`);
               break;
           }
         }
@@ -269,11 +293,16 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
           )}
 
           {error ? (
-            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#09090b]">
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#09090b] px-4 text-center">
               <span className="text-4xl mb-3 text-white">⚠️</span>
-              <p className="text-white/70 font-bold tracking-widest text-xs sm:text-sm">
+              <p className="text-white/70 font-bold tracking-widest text-xs sm:text-sm mb-2">
                 {lang === 'ar' ? 'حدث خطأ في تشغيل البث' : 'STREAM ERROR'}
               </p>
+              {exactError && (
+                <p className="text-red-400 font-mono text-xs max-w-lg break-words bg-black/40 p-2 rounded border border-red-500/20">
+                  {exactError}
+                </p>
+              )}
             </div>
           ) : isDirectVideo ? (
              <video
