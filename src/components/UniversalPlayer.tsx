@@ -101,6 +101,11 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 90,
+        xhrSetup: function(xhr, url) {
+           if (url.startsWith('http') && !url.includes(window.location.origin)) {
+             xhr.open('GET', '/api/proxy?url=' + encodeURIComponent(url));
+           }
+        },
         manifestLoadingTimeOut: 20000,
         manifestLoadingMaxRetry: 5,
         levelLoadingMaxRetry: 5,
@@ -158,7 +163,9 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native Safari
-      video.src = streamUrl;
+      video.src = streamUrl.startsWith('http') && !streamUrl.includes(window.location.origin) 
+        ? '/api/proxy?url=' + encodeURIComponent(streamUrl) 
+        : streamUrl;
       video.addEventListener('loadedmetadata', () => {
         setLoading(false);
         if (!muted) video.muted = false;
