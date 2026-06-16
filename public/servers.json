@@ -7,7 +7,7 @@
         {
           "id": "srv_mor_bra_1",
           "name": "سيرفر 1",
-          "url": "https://prod-fastly-eu-west-1.video.pscp.tv/Transcoding/v1/hls/NwhlonvK2Z5geeyfmo6FaUhJu2aQobwruLtRhqpfLrOM1JUB_eCvrijQ-GVfA7SC_b_01QwMrRjTkrksJLScJA/non_transcode/eu-west-1/periscope-replay-direct-prod-eu-west-1-public/master_dynamic_delta.m3u8?type=live",
+          "url": "https://stream.kurdtv.live/bein-max/index.m3u8",
           "language": "عربي"
         },
         {
