@@ -95,24 +95,27 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
     setError(false);
     setExactError(null);
 
+    const getProxiedUrl = (url: string) => {
+      if (url.startsWith("http") && !url.includes(window.location.origin)) {
+        return '/api/proxy?url=' + encodeURIComponent(url);
+      }
+      return url;
+    };
+
     if (Hls.isSupported() && streamUrl.includes('.m3u8')) {
       console.log('Initializing HLS for stream URL:', streamUrl);
+      
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 90,
-        xhrSetup: function(xhr, url) {
-           if (url.startsWith('http') && !url.includes(window.location.origin)) {
-             xhr.open('GET', '/api/proxy?url=' + encodeURIComponent(url));
-           }
-        },
         manifestLoadingTimeOut: 20000,
         manifestLoadingMaxRetry: 5,
         levelLoadingMaxRetry: 5,
         fragLoadingMaxRetry: 5,
         debug: true
       });
-      hls.loadSource(streamUrl);
+      hls.loadSource(getProxiedUrl(streamUrl));
       hls.attachMedia(video);
       
       hls.on(Hls.Events.MANIFEST_LOADING, (event, data) => {
@@ -163,9 +166,7 @@ export default function UniversalPlayer({ streamUrl, onBack, lang, match }: Univ
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native Safari
-      video.src = streamUrl.startsWith('http') && !streamUrl.includes(window.location.origin) 
-        ? '/api/proxy?url=' + encodeURIComponent(streamUrl) 
-        : streamUrl;
+      video.src = getProxiedUrl(streamUrl);
       video.addEventListener('loadedmetadata', () => {
         setLoading(false);
         if (!muted) video.muted = false;
